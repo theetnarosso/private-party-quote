@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>The Etna Rosso • Dinner Quote Builder (Per-Guest Food Pricing)</title>
+  <style>
+    :root{
+      --bg:#090909;
+      --panel:#171717;
+      --ink:#f0f0f0;
+      --muted:#b8b8b8;
+      --gold:#bfa24a;
+      --accent:#b28b2e;
+      --ok:#1f9d55;
+      --danger:#d9534f;
+      --line:#333333;
+    }
+    html,body{height:100%}
+    body{margin:0;background:linear-gradient(180deg,var(--bg),#141414);color:var(--ink);font:15px/1.55 system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
+    .wrap{max-width:1200px;margin:0 auto;padding:18px 16px 28px}
+    h1{font-size:24px;margin:0 0 8px;letter-spacing:.5px}
+    .sub{color:var(--muted);margin-bottom:20px}
+    .grid{display:grid;grid-template-columns: 1.1fr .9fr;gap:20px}
+    .card{background:var(--panel);border:1px solid var(--line);border-radius:16px;box-shadow:0 6px 18px rgba(0,0,0,.35)}
+    .card h2{font-size:18px;margin:0;padding:16px 18px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,#161616,#121212)}
+    .card .content{padding:16px 18px}
+    .toolbar{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:12px}
+    .card .content .toolbar{position:sticky;top:0;z-index:20;background:linear-gradient(180deg,var(--panel),#141414);border-bottom:1px solid var(--line);box-shadow:0 8px 16px rgba(0,0,0,.25);margin:-16px -18px 16px;padding:16px 18px}
+    input[type="text"], input[type="number"], select, textarea{background:#0c0c0c;color:var(--ink);border:1px solid var(--line);border-radius:10px;padding:10px 12px;outline:none}
+    input::placeholder{color:#878787}
+    input:focus, select:focus, textarea:focus {border-color:var(--gold); box-shadow:0 0 0 1px var(--gold);}
+    .toolbar input[type="text"] {flex-grow:1;}
+    .btn{background:#111111;color:var(--ink);border:1px solid var(--line);padding:10px 14px;border-radius:12px;cursor:pointer;transition:.15s}
+    .btn:hover{border-color:#4a4a4a;transform:translateY(-1px)}
+    .btn.primary{background:linear-gradient(180deg,#333333,#1f1f1f);border-color:#4b4b4b;color:#fff}
+    .btn.gold{background:linear-gradient(180deg,var(--gold),#a58e45);color:#111;border:none}
+    .btn.ghost{background:transparent;color:var(--danger);border-color:var(--danger)}
+    .btn.ghost:hover {border-color:var(--danger); background:rgba(217,83,79,.1)}
+    .chips{display:flex;gap:8px;flex-wrap:wrap}
+    .chip{border:1px solid var(--line);padding:9px 12px;border-radius:999px;cursor:pointer;background:#101010;color:#f2f2f2;font-weight:600}
+    .chip:not(.active){color:#f2f2f2}
+    .chip.active{border-color:var(--gold);box-shadow:0 0 0 2px var(--gold) inset;color:#fff}
+    .chip:hover {background:#1f1f1f; border-color:#4a4a4a}
+    .menu{display:grid;gap:14px}
+    .item{border:1px solid var(--line);background:linear-gradient(180deg,#141414,#0e0e0e);border-radius:14px;padding:12px;display:flex;justify-content:space-between;align-items:center}
+    .item h3{margin:0 0 2px;font-size:15px}
+    .price{color:var(--gold);font-weight:700;font-size:16px;letter-spacing:.2px}
+    .qty{display:flex;align-items:center;gap:8px}
+    .qty button{
+      width:32px;height:32px;border-radius:10px;border:1px solid #2b2b2b;background:#0c0c0c;color:#eee;
+      cursor:pointer;font-weight:bold;display:flex;align-items:center;justify-content:center;
+      padding:0; line-height:1; text-align:center;
+    }
+    .qty input{width:56px;text-align:center}
+    .basket table{width:100%;border-collapse:collapse}
+    .basket th,.basket td{border-bottom:1px dashed var(--line);padding:10px 4px;vertical-align:middle}
+    .basket th{color:#cfcfcf;text-align:left}
+    .basket tr:last-child td{border-bottom:none}
+    .rownote{color:#9aa0a6;font-size:12px}
+    .muted{color:var(--muted)}
+    .totals{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-top:10px}
+    .totals .field{display:flex;flex-direction:column;align-items:flex-start;justify-content:space-between;border:1px solid var(--line);border-radius:12px;padding:10px 12px;background:#0c0c0c}
+    .totals .field label{color:#cfcfcf;margin-bottom:4px;font-size:12px;font-weight:600}
+    .totals .field input{width:100%;text-align:right;box-sizing:border-box}
+    .sum{border-top:1px solid var(--line);padding-top:12px;margin-top:12px;font-size:15px}
+    .sum .line{display:flex;justify-content:space-between;padding:6px 0}
+    .sum .line strong{letter-spacing:0;font-weight:800}
+    .sum .grand{font-size:24px;padding-top:4px}
+    .foot{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}
+    .note{width:100%;min-height:60px;padding:12px}
+    .brand{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+    .brand .dot{width:11px;height:11px;border-radius:3px;background:var(--gold);box-shadow:0 0 0 2px #000}
+    .brand h1 span{color:var(--gold)}
+    @media (max-width:1020px){.grid{grid-template-columns:1fr}}
+    @media print{
+      body{background:#fff;color:#000;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+      .brand,.sub,.grid > :not(.basket), .toolbar, .foot, details{display:none !important}
+      .grid{display:block}
+      .basket{box-shadow:none;border:none}
+      .basket .card,.basket,.basket .content{background:#fff;color:#000;border:none}
+      .basket h2{background:#fff;color:#000;border:none;padding-left:0}
+      .muted{color:#444 !important}
+      input,select,textarea,button{appearance:none;-webkit-appearance:none;border:1px solid #ccc;background:#fff;color:#000}
+      .price{color:#000}
+      .basket th,.basket td{border-bottom:1px solid #ddd;padding:8px 0}
+    }
+    .menu details{grid-column:1 / -1;border-top:1px solid var(--line);padding-top:6px}
+    .menu summary{list-style:none;display:flex;justify-content:space-between;align-items:center;cursor:pointer;font-weight:700;color:#f2f2f2;margin:10px 0 6px}
+    .menu summary::-webkit-details-marker{display:none}
+    .menu summary .tw{font-size:14px;transition:transform .2s;margin-left:8px}
+    .menu details[open] > summary .tw{transform:rotate(0deg)}
+    .menu details:not([open]) > summary .tw{transform:rotate(-90deg)}
+    .menu .section{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}
+    .add-custom-toolbar{display:flex;gap:10px;flex-wrap:wrap;margin-top:8px}
+    .add-custom-toolbar input:nth-child(1){flex-grow:2}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="brand">
+      <div class="dot"></div>
+      <h1>The Etna Rosso <span>•</span> Dinner Quote Builder</h1>
+    </div>
+    <div class="sub">This pricing structure is only available wihen the minimum spent per guest is at least $60 before tax and tip, with a minimum of 6 guests, or a total above 360, before tax and tip.</div>
+
+    <div class="grid">
+      <section class="card">
+        <h2>Menu</h2>
+        <div class="content">
+          <div class="toolbar">
+            <input id="search" type="text" placeholder="Search item (e.g., branzino, chianti, prosecco)…" />
+            <button class="btn" id="clearSearch">Clear</button>
+            <div class="chips" id="cats"></div>
+          </div>
+          <div class="menu" id="menu"></div>
+        </div>
+      </section>
+
+      <section class="card basket">
+        <h2>Quote</h2>
+        <div class="content">
+          <table id="basketTbl">
+            <thead>
+              <tr>
+                <th style="width:48%">Item</th>
+                <th class="muted">Cat</th>
+                <th class="muted" style="text-align:right">Unit</th>
+                <th class="muted" style="text-align:right">Qty</th>
+                <th style="text-align:right">Price</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="basketBody"></tbody>
+          </table>
+
+          <details style="margin-top:12px">
+            <summary class="muted">Add Custom Item / Fee</summary>
+            <div class="add-custom-toolbar">
+              <input id="customName" type="text" placeholder="Custom description"/>
+              <input id="customPrice" type="number" step="0.01" placeholder="Unit price"/>
+              <input id="customQty" type="number" step="1" value="1" style="width:70px;"/>
+              <button class="btn gold" id="addCustom">Add</button>
+            </div>
+          </details>
+
+          <div class="totals">
+            <div class="field"><label>Guests</label><input id="guests" type="number" value="10" min="1"></div>
+            <div class="field"><label>Service Fee %</label><input id="svcPct" type="number" value="0" step="0.1"></div>
+            <div class="field"><label>Tip %</label><input id="tipPct" type="number" value="20" step="0.1"></div>
+            <div class="field"><label>Sales Tax %</label><input id="taxPct" type="number" value="7" step="0.01"></div>
+          </div>
+
+          <textarea id="notes" class="note" placeholder="Notes / terms (e.g., menu is family-style, corkage, setup fee, date & time, deposit, etc.)"></textarea>
+
+          <div class="sum" id="summary"></div>
+
+          <div class="foot">
+            <button class="btn gold" id="exportCSV">Export CSV</button>
+            <button class="btn primary" id="print">Print / Save PDF</button>
+            <button class="btn" id="share">Copy Shareable Link</button>
+            <button class="btn ghost" id="reset">Reset</button>
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+
+<script>
+// ---------- Config for per-guest behavior ----------
+const PER_GUEST_CATS = new Set(['Appetizers','Salad','Homemade Pastas','Meat','Fish']);
+const DIVISOR = 2.7;
+const DESSERT_DIVISOR = 2.2;
+
+// Round UP to the nearest cent (ceiling to $0.01)
+function ceilToCent(dollars){
+  return Math.ceil(dollars * 100) / 100;
+}
+
+// Adjust price: divide by 2.7 and round up to cent for target cats
+function adjustedPrice(cat, dollars){
+  if (cat === 'Desserts') return ceilToCent(dollars / DESSERT_DIVISOR);
+  if (!PER_GUEST_CATS.has(cat)) return dollars;
+  return ceilToCent(dollars / DIVISOR);
+}
+
+// ---------- Data (base menu with original prices in dollars) ----------
+const MENU = [
+  // Appetizers
+  ["Appetizers", [
+    ["Bruschetta Classica", 9.5],
+    ["EggPlant Polpetta", 24],
+    ["Mix Greens", 12],
+    ["Caponata di Melanzane", 16],
+    ["Etna Trio", 33],
+    ["Prosciutto, Burrata, Sun-dried Tomatoes", 24],
+    ["Victoria Shrimp", 24],
+    ["Cozze & Vongole", 23],
+    ["Tortellini in Brodo", 18],
+  ]],
+  ["Salad", [
+    ["Rossa Salad", 13],
+    ["Caprese Salad", 19],
+    ["Annalisa Salad", 18],
+    ["Elizabeta Salad", 24],
+    ["Valentina Salad", 24],
+  ]],
+  // NOTE: Seafood is left UNCHANGED per your categories list
+  ["Seafood", [
+    ["Linguine alle Vongole", 27],
+    ["Risotto Pescatora", 45],
+    ["Tagliolini allo Scoglio", 42],
+    ["Lobster Ravioli", 46],
+  ]],
+  ["Homemade Pastas", [
+    ["Maccheroni Norma", 26],
+    ["Strozzapreti Pesto", 26],
+    ["Spaghetti Puttanesca", 27],
+    ["Rigatoni Ruggine", 26],
+    ["Bucatini alla Gricia & Tartufo", 27],
+    ["Tagliatelle Etna Rosso", 26],
+    ["Bucatini Amatriciana", 26],
+    ["Pappardelle al Ragu’", 32],
+    ["Gnocchi Gorgonzola & Noci", 27],
+  ]],
+  ["Add-ons", [
+    ["Gluten Free (Add-on)", 2.99],
+    ["Meat Ball (Add-on)", 7.99],
+    ["Chicken (Add-on)", 6.99],
+    ["Spicy Nduja (Add-on)", 5.99],
+    ["Sausage (Add-on)", 6.99],
+    ["3 Shrimp (Add-on)", 9.99],
+    ["EggPlant Ball (Add-on)", 6.99],
+  ]],
+  ["Meat", [
+    ["Short Beef Ribs Bone in", 49],
+    ["Chicken Saltibocca", 32],
+    ["Scaloppine Piccata", 39],
+  ]],
+  ["Fish", [
+    ["Pan-Seared Branzino Delight", 46],
+    ["Branzino all’Acqua Pazza", 49],
+  ]],
+  ["Desserts", [
+    ["Cannolo", 10],
+    ["Limoncello Mascarpone", 10],
+    ["Flowerless Chocolate Cake", 10],
+    ["Tiramisu", 10],
+    ["Ricotta Cheese Cake", 10],
+    ["Affogato", 10],
+  ]],
+  ["Red Wine", [
+    ["Etna Rosso, Firriato, Sicily",59],["Etna Rosso, Luce di Lava, Cantine Russo, Sicily",95],["Nero D’Avola, DOC, Catuj, Sicily",50],["Nero D’Avola, A Mare, Pintaudi, Sicily",50],["Nero D’Avola, Harmonium, Firriato, Sicily",99],["Perricone, DOC, Grammassenti, Feudo di Sisa, Sicily",60],["Chianti, DOCG, Alfiero, La Collina, Toscany",40],["Chianti Classico Riserva, DOCG, Otello, Trambusti",64],["Chianti Classico Riserva, DOCG, Montemorli",90],["Pinot Nero, Crobarra, Lombardy",47],["Pinot Nero, Terre Siciliane, Sicily",49],["Pinot Noir, Sea Sun, Caymus Vineyards, California",62],["Super Toscan, IGT, Rosso dei Poggi, Toscany",50],["Super Toscan, Prunicce, Pakravan-Papi, Toscany",70],["Barbera Passito, Beppe Marino, Piedmont",99],["Bolgheri, il Bruciato, Antinori, Toscany",85],["Conundrum Red Wine, Caymus Vineyards, California",60],["Malbec Gran Riserva, Loscano, Mendoza, Argentina",70],["Merlot, Collevento 921, Venice",42],["Rosso Di Montalcino, Santa Giulia, Tuscany",60],["Brunello Di Montalcino, Santa Giulia,Tuscany",99],["Cabernet Sauvignon, Fuga, Puglia",65],["Montepulciano D’Abruzzo, Aida, Marchesi de’Cordano",45],["Sangue Di Giuda, Calatroni, Lombardy",47],["Barbaresco, Prinsi, Gaia Principe, Piedmont",82],["Valpolicella Ripasso, Tinazzi, Valpolicella 62",62],["Barolo, Virvasco, Bersano, Piedmont",99],["Etna Rosso, Pietradolce, Archeneri, 2019, Sicily",135],["Barolo, Bovio, Arborina, 2020, Piemont",158],["Amarone, Domini Veneti, Valpolicella, Veneto",120],["Amarone Classico Riserva, Villa Almadi, 2016",155],["Cerasuolo di Vittoria, Barocco, Avide 2014, Sicily",120],["Cerasuolo di Vittoria, Barocco, Avide 2014, 3Liters",359],["Tignanello, Marchesi Antinori, Toscany",275],["Brunello di Montalcino, Mastro-Janni, 2016, Toscany",200],["Brunello di Montalcino, Lisini, 2016, Toscany",275],["Brunello di Montalcino, Valdicava, 2007, Toscany",475],["Super Toscan, IGT, Cancellaia, Pakravan-Papi",125],["Solaia, Marchesi Antinori, 2018, Toscana",599],["Sagrantino, Montefalco, Bocale , Umbria",110],["Cabernet Franc, Donne Fitibaldi 2022, Bolgheri",120],["Cabernet Sauvignon, Magnificat, 2019, Drei Dona",120],["Cabernet Sauvignon, Caymus, 2022, Napa, 750ml",165],["Cabernet Sauvignon, Caymus, 2022, Napa, 1Liter",199],["Caymus Special Selection, 2016, Napa",499],["Far Niente, 2021, Napa Valley",225]
+  ]],
+  ["White Wine", [
+    ["Pinot Grigio, Pierpaolo Pecorari, Friuli.",60],["Pinot Grigio, Ruffino Lumia delle Venezie",40],["Ceretto Arneis Blangé, DOC, Langhe, Piedmont",63],["Cataratto, Lu Bancu, Feudi Disisa, Sicily",60],["Etna Bianco, Firriato, Sicily 59",59],["Bianco, Regaleali, Sicily 54",54],["Gavi di Gavi, Bersano, Piedmont",60],["Sauvignon Blanc, Echo Bay, New Zeland",54],["Chardonnay, Feudo di Sisa, Sicily",55],["Chardonnay, I Filari, Lazio, Italy",45],["Moscato, Lodali, 2021, Piedmont",50],["Rose, Tinazzi, 2020, Bardolino, Veneto",50]
+  ]],
+  ["Sparkling", [
+    ["Prosecco, Brut Nature, (only 3gr sugar) Pitars, Friuli",50],["Prosecco, Nutaru Brut, Avide (Sicily)",95],["Champagne, Veuve Clicquot, Brut, France",165],["Champagne, Don Perrignon, France",595]
+  ]],
+  ["Drinks", [
+    ["Aqua Panna Flat",8],["Pellegrino Sparkling",9],["Nastro Azzurro Beer",7],["Soft drink",5]
+  ]],
+];
+
+// ---------- Build adjusted ITEMS (with adjusted cents already applied where needed) ----------
+const ITEMS = [];
+MENU.forEach(([cat, arr])=>{
+  arr.forEach(([name, dollars], idx)=>{
+    const adj = adjustedPrice(cat, dollars);
+    ITEMS.push({ id: `${cat}:${idx}`, cat, name, cents: Math.round(adj*100) });
+  })
+});
+
+// ---------- App state ----------
+const state = {
+  filterCat: 'All',
+  search: '',
+  basket: [], // {id, name, cat, unitCents, qty}
+  guests: 10, taxPct: 7, tipPct: 20, svcPct: 0,
+  notes: ''
+};
+
+const $ = sel => document.querySelector(sel);
+const $$ = sel => document.querySelectorAll(sel);
+
+// Build category chips
+function buildCats(){
+  const cats = ["All", ...MENU.map(([c])=>c)];
+  const box = $('#cats'); box.innerHTML='';
+  cats.forEach(cat=>{
+    const el = document.createElement('button');
+    el.className = 'chip' + (state.filterCat===cat?' active':''); 
+    el.textContent = cat;
+    el.onclick = ()=>{ state.filterCat=cat; buildCats(); renderMenu(); };
+    box.appendChild(el);
+  })
+}
+
+function renderMenu(){
+  const grid = $('#menu');
+  const term = state.search.trim().toLowerCase();
+  const cat = state.filterCat;
+  grid.innerHTML='';
+
+  // We'll render from MENU but display adjusted prices for target categories
+  const renderCategory = (category, items, idx, filterTerm) => {
+    const filtered = items.filter(([nm]) => !filterTerm || nm.toLowerCase().includes(filterTerm));
+    if (filterTerm && filtered.length === 0) return;
+
+    const wrap = document.createElement('details');
+    wrap.open = (idx === 0);
+
+    const sum = document.createElement('summary');
+    sum.innerHTML = `<span>${category}</span><span class="tw">▼</span>`;
+    wrap.appendChild(sum);
+
+    const section = document.createElement('div');
+    section.className = 'section';
+
+    const itemsToRender = filtered.length ? filtered : (term ? [] : items);
+
+    itemsToRender.forEach((item, i2) => {
+      const [name, basePrice] = item;
+      const display = adjustedPrice(category, basePrice);
+      const el = document.createElement('div');
+      el.className='item';
+      el.innerHTML = `
+        <div>
+          <h3>${name}</h3>
+          <div class="muted">${category}${PER_GUEST_CATS.has(category) ? ' • per guest' : ''}</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px">
+          <div class="price">$${display.toFixed(2)}</div>
+          <div class="qty">
+            <button class="btn primary" title="Add 1">Add</button>
+          </div>
+        </div>`;
+      el.querySelector('button').onclick = ()=> addToBasket(`${category}:${i2}`, 1);
+      section.appendChild(el);
+    });
+
+    if (itemsToRender.length > 0) {
+      wrap.addEventListener('toggle', () => {
+        if (wrap.open) {
+          const all = grid.querySelectorAll('details');
+          all.forEach(d => { if (d !== wrap) d.open = false; });
+        }
+      });
+      wrap.appendChild(section);
+      grid.appendChild(wrap);
+    }
+  };
+
+  if (cat === 'All') {
+    MENU.forEach(([category, items], idx) => renderCategory(category, items, idx, term));
+  } else {
+    const idx = MENU.findIndex(([c])=>c===cat);
+    if (idx !== -1) renderCategory(MENU[idx][0], MENU[idx][1], idx, term);
+  }
+}
+
+function addToBasket(id, qty){
+  const item = ITEMS.find(i=>i.id===id); if(!item) return;
+  const row = state.basket.find(r=>r.id===id);
+  if(row){
+    row.qty += qty;
+  } else {
+    const perGuest = PER_GUEST_CATS.has(item.cat);
+    const initialQty = perGuest ? state.guests : 1;
+    state.basket.push({id, name:item.name, cat:item.cat, unitCents:item.cents, qty: initialQty, qtySynced: perGuest});
+  }
+  save();
+  renderBasket();
+}
+
+function changeQty(idx, delta){
+  const r = state.basket[idx]; if(!r) return; r.qty = Math.max(0, r.qty+delta); if(r.qty===0) state.basket.splice(idx,1); if(r) r.qtySynced = false; save(); renderBasket();
+}
+
+function setQty(idx, val){
+  const r = state.basket[idx]; if(!r) return; r.qty = Math.max(0, Number(val)||0); if(r.qty===0) state.basket.splice(idx,1); if(r) r.qtySynced = false; save(); renderBasket();
+}
+
+function money(n){ return `$${(n/100).toFixed(2)}` }
+
+function renderBasket(){
+  $('#guests').value=state.guests; $('#taxPct').value=state.taxPct; $('#tipPct').value=state.tipPct; $('#svcPct').value=state.svcPct; $('#notes').value=state.notes;
+  const body = $('#basketBody');
+  body.innerHTML = '';
+  state.basket.forEach((r, i)=>{
+    const perGuest = PER_GUEST_CATS.has(r.cat);
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><strong>${r.name}</strong><div class="rownote muted">${perGuest ? (r.qtySynced ? 'Qty auto = guests' : 'Qty was edited') : ''}</div></td>
+      <td class="muted">${r.cat}</td>
+      <td style="text-align:right">${money(r.unitCents)}${perGuest ? ' / guest' : ''}</td>
+      <td style="text-align:right">
+        <div class="qty" style="justify-content:flex-end">
+          <button title="-1">−</button>
+          <input type="number" value="${r.qty}" min="0" step="1" style="width:56px"/>
+          <button title="+1">＋</button>
+        </div>
+      </td>
+      <td style="text-align:right"><strong>${money(r.unitCents * r.qty)}</strong></td>
+      <td style="text-align:right"><button class="btn" title="Remove" style="font-size:10px; width:22px; height:22px; padding:0; line-height:1; border-radius:6px; background:#1f1f1f;">✕</button></td>`;
+    const [btnMinus, input, btnPlus] = tr.querySelectorAll('button, input');
+    btnMinus.onclick = ()=> changeQty(i, -1);
+    btnPlus.onclick  = ()=> changeQty(i, +1);
+    input.onchange   = (e)=> setQty(i, e.target.value);
+    tr.querySelector('td:last-child button').onclick = ()=>{ state.basket.splice(i,1); save(); renderBasket(); };
+    body.appendChild(tr);
+  });
+  computeTotals();
+}
+
+function centsSum(){ 
+  return state.basket.reduce((s,r)=> s + r.unitCents * r.qty, 0);
+}
+
+function computeTotals(){
+  const sub = centsSum();
+  const svcPctVal = Math.max(0, Number(state.svcPct)||0);
+  const tipPctVal = Math.max(0, Number(state.tipPct)||0);
+  const taxPctVal = Math.max(0, Number(state.taxPct)||0);
+
+  const svc = Math.round(sub * (svcPctVal/100));
+  const afterSvc = sub + svc;
+  const tip = Math.round(afterSvc * (tipPctVal/100));
+  const afterTip = afterSvc + tip;
+
+  const taxable = Math.max(0, afterTip);
+  const tax = Math.round(taxable * (taxPctVal/100));
+  const grand = taxable + tax;
+  const per = state.guests>0 ? Math.ceil(grand/state.guests) : grand;
+
+  $('#summary').innerHTML = `
+    <div class="line"><span class="muted">Items Subtotal</span><strong>${money(sub)}</strong></div>
+    <div class="line"><span class="muted">Service Fee (${svcPctVal}%)</span><strong>${money(svc)}</strong></div>
+    <div class="line"><span class="muted">Tip (${tipPctVal}%)</span><strong>${money(tip)}</strong></div>
+    <div class="line"><span class="muted">Taxable Amount</span><strong>${money(taxable)}</strong></div>
+    <div class="line"><span class="muted">Sales Tax (${taxPctVal}%)</span><strong>${money(tax)}</strong></div>
+    <div class="line grand" style="margin-top:6px"><span><strong>Total</strong></span><strong>${money(grand)}</strong></div>
+    <div class="line"><span class="muted">Per Guest (×${state.guests})</span><strong>${money(per)}</strong></div>
+  `;
+}
+
+// ---------- Events ----------
+$('#search').addEventListener('input', e=>{ state.search = e.target.value; renderMenu(); });
+$('#clearSearch').onclick = ()=>{ state.search=''; $('#search').value=''; renderMenu(); };
+
+['guests','taxPct','tipPct','svcPct'].forEach(id=>{
+  $('#'+id).addEventListener('change', e=>{ 
+    let val = Number(e.target.value);
+    if(val < 0) { 
+      val = 0; 
+      e.target.value = 0; 
+    }
+    state[id] = val || 0; 
+    if(id === 'guests'){
+      // Update any per-guest rows that are still synced
+      state.basket.forEach(r=>{
+        if(PER_GUEST_CATS.has(r.cat) && r.qtySynced){ r.qty = state.guests; }
+      });
+    }
+    save(); 
+    renderBasket();
+  });
+});
+
+$('#notes').addEventListener('input', e=>{ state.notes = e.target.value; save(); });
+
+$('#addCustom').onclick = ()=>{
+  const name = $('#customName').value.trim();
+  const price = Number($('#customPrice').value||0);
+  const qty = Number($('#customQty').value||1);
+  if(!name || price<=0 || qty<=0) return alert('Enter a name, unit price greater than 0, and quantity greater than 0.');
+  const id = 'Custom:'+Date.now();
+  state.basket.push({id, name, cat:'Custom', unitCents: Math.round(price*100), qty});
+  $('#customName').value=''; $('#customPrice').value=''; $('#customQty').value='1';
+  save(); renderBasket();
+}
+
+$('#exportCSV').onclick = ()=>{
+  const rows = [
+    ['Item','Category','Unit Price','Qty','Line'],
+    ...state.basket.map(r=>{
+      const line = (r.unitCents * r.qty)/100;
+      return [r.name,r.cat,(r.unitCents/100).toFixed(2),r.qty,line.toFixed(2)];
+    })
+  ];
+  const csv = rows.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\\n');
+  const blob = new Blob([csv], {type:'text/csv'});
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'etna_rosso_quote.csv'; a.click();
+}
+
+$('#print').onclick = ()=> window.print();
+
+$('#share').onclick = ()=>{
+  const payload = {
+    b: state.basket, g: state.guests, t: state.taxPct, p: state.tipPct, s: state.svcPct, n: state.notes
+  };
+  const payloadString = JSON.stringify(payload);
+  const base64Encoded = btoa(encodeURIComponent(payloadString).replace(/%([0-9A-F]{2})/g, (match, p1) => 
+    String.fromCharCode('0x' + p1)
+  ));
+  const url = new URL(window.location.href);
+  url.hash = 'q=' + base64Encoded;
+  navigator.clipboard.writeText(url.toString()).then(()=> alert('Shareable link copied.'));
+}
+
+$('#reset').onclick = ()=>{
+  if(!confirm('Clear the current quote? This action cannot be undone.')) return; 
+  localStorage.removeItem('etr_quote'); 
+  state.basket=[]; 
+  state.guests = 10; state.taxPct = 7; state.tipPct = 20; state.svcPct = 0;
+  state.notes=''; 
+  renderMenu();
+  renderBasket();
+}
+
+// ---------- Persistence ----------
+function save(){
+  localStorage.setItem('etr_quote', JSON.stringify(state));
+}
+function load(){
+  const fromHash = (()=>{
+    if(location.hash.startsWith('#q=')){
+      try{
+        const raw = location.hash.slice(3);
+        const jsonString = decodeURIComponent(atob(raw).split('').map(c =>
+          '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)
+        ).join(''));
+        const obj = JSON.parse(jsonString);
+        return obj;
+      }catch(e){
+        console.error("Error loading state from hash:", e);
+      }
+    }
+    return null;
+  })();
+  const raw = fromHash ? null : localStorage.getItem('etr_quote');
+  const obj = fromHash || (raw? JSON.parse(raw): null);
+  
+  if(obj){
+    state.basket = obj.b || obj.basket || [];
+    state.guests = obj.g ?? obj.guests ?? 10;
+    state.taxPct = obj.t ?? obj.taxPct ?? 7;
+    state.tipPct = obj.p ?? obj.tipPct ?? 20;
+    state.svcPct = obj.s ?? obj.svcPct ?? 0;
+    state.notes  = obj.n ?? obj.notes ?? '';
+  }
+}
+
+// ---------- Init ----------
+buildCats();
+load();
+renderMenu();
+renderBasket();
+</script>
+</body>
+</html>
